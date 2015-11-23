@@ -512,6 +512,13 @@
               <xsl:value-of select="/*/gmd:dataSetURI/gcoold:CharacterString"/>
             </gco:CharacterString>
           </mcc:code>
+					<xsl:if test="contains($dsuri,'www.ga.gov.au')">
+						<mcc:codeSpace>
+							<gco:CharacterString>
+								<xsl:value-of select="'ga-dataSetURI'"/>
+							</gco:CharacterString>
+						</mcc:codeSpace>
+					</xsl:if>
         </mcc:MD_Identifier>
       </cit:identifier>
     </xsl:if>

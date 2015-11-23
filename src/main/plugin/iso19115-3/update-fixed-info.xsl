@@ -9,10 +9,9 @@
   xmlns:mrc="http://standards.iso.org/iso/19115/-3/mrc/1.0"
   xmlns:lan="http://standards.iso.org/iso/19115/-3/lan/1.0"
   xmlns:cit="http://standards.iso.org/iso/19115/-3/cit/1.0"
-  xmlns:dqm="http://standards.iso.org/iso/19157/-2/dqm/1.0"
-  xmlns:gfc="http://standards.iso.org/iso/19110/gfc/1.1"
-  xmlns:xlink="http://www.w3.org/1999/xlink"
-  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:mdq="http://standards.iso.org/iso/19157/-2/mdq/1.0"
+  xmlns:xlink="http://www.w3.org/1999/xlink" 
+	xmlns:xs="http://www.w3.org/2001/XMLSchema"
   xmlns:java="java:org.fao.geonet.util.XslUtil"
   xmlns:mime="java:org.fao.geonet.util.MimeTypeFinder"
   xmlns:gn="http://www.fao.org/geonetwork"
@@ -22,16 +21,14 @@
   
   <xsl:include href="convert/functions.xsl"/>
 
+	<!-- The correct codeList Location goes here -->
+	<xsl:variable name="codeListLocation" select="'codeListLocation'"/>
 
   <!-- If no metadata linkage exist, build one based on
   the metadata UUID. -->
   <xsl:variable name="createMetadataLinkage" select="true()"/>
   <xsl:variable name="url" select="/root/env/siteURL"/>
   <xsl:variable name="uuid" select="/root/env/uuid"/>
-
-  <xsl:variable name="metadataIdentifierCodeSpace"
-                select="'urn:uuid'"
-                as="xs:string"/>
 
   <xsl:template match="/root">
     <xsl:apply-templates select="mdb:MD_Metadata"/>
@@ -43,98 +40,69 @@
       
       <xsl:call-template name="add-iso19115-3-namespaces"/>
       
-      <!-- Add metadataIdentifier if it doesn't exist
-      TODO: only if not harvested -->
+      <!-- Add metadataIdentifier with uuid in geonetwork -->
       <mdb:metadataIdentifier>
         <mcc:MD_Identifier>
-          <!-- authority could be for this GeoNetwork node ?
-            <mcc:authority><cit:CI_Citation>etc</cit:CI_Citation></mcc:authority>
-          -->
+         	<mcc:authority>
+						<cit:CI_Citation>
+							<cit:title>
+           			<gco:CharacterString>GeoNetwork UUID</gco:CharacterString>
+							</cit:title>
+						</cit:CI_Citation>
+					</mcc:authority>
           <mcc:code>
             <gco:CharacterString><xsl:value-of select="/root/env/uuid"/></gco:CharacterString>
           </mcc:code>
           <mcc:codeSpace>
-            <gco:CharacterString><xsl:value-of select="$metadataIdentifierCodeSpace"/></gco:CharacterString>
+            <gco:CharacterString>urn:uuid</gco:CharacterString>
           </mcc:codeSpace>
         </mcc:MD_Identifier>
       </mdb:metadataIdentifier>
 
-  <!--    <xsl:apply-templates select="mdb:metadataIdentifier[
-                                    mcc:MD_Identifier/mcc:codeSpace/gco:CharacterString !=
-                                    $metadataIdentifierCodeSpace]"/>-->
-
+      
       <xsl:apply-templates select="mdb:defaultLocale"/>
       <xsl:apply-templates select="mdb:parentMetadata"/>
       <xsl:apply-templates select="mdb:metadataScope"/>
       <xsl:apply-templates select="mdb:contact"/>
-
-
-      <xsl:variable name="isCreationDateAvailable"
-                    select="mdb:dateInfo/*[cit:dateType/*/@codeListValue = 'creation']"/>
-      <xsl:variable name="isRevisionDateAvailable"
-                    select="mdb:dateInfo/*[cit:dateType/*/@codeListValue = 'revision']"/>
-
-      <!-- Add creation date if it does not exist-->
-      <xsl:if test="not($isCreationDateAvailable)">
+      
+      <!-- Add dateInfo creation and revision if they don't exist -->
+      <xsl:if test="not(mdb:dateInfo/cit:CI_Date[cit:dateType/cit:CI_DateTypeCode/@codeListValue='creation']) and /root/env/changeDate">
         <mdb:dateInfo>
           <cit:CI_Date>
             <cit:date>
               <gco:DateTime><xsl:value-of select="/root/env/changeDate"/></gco:DateTime>
             </cit:date>
             <cit:dateType>
-              <cit:CI_DateTypeCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#CI_DateTypeCode" codeListValue="creation"/>
+              <cit:CI_DateTypeCode codeList="{concat($codeListLocation,'#CI_DateTypeCode')}" codeListValue="creation"/>
             </cit:dateType>
           </cit:CI_Date>
         </mdb:dateInfo>
       </xsl:if>
-      <xsl:if test="not($isRevisionDateAvailable)">
+      <xsl:if test="not(mdb:dateInfo/cit:CI_Date[cit:dateType/cit:CI_DateTypeCode/@codeListValue='revision']) and /root/env/changeDate">
         <mdb:dateInfo>
           <cit:CI_Date>
             <cit:date>
               <gco:DateTime><xsl:value-of select="/root/env/changeDate"/></gco:DateTime>
             </cit:date>
             <cit:dateType>
-              <cit:CI_DateTypeCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#CI_DateTypeCode" codeListValue="revision"/>
+              <cit:CI_DateTypeCode codeList="{concat($codeListLocation,'#CI_DateTypeCode')}" codeListValue="revision"/>
             </cit:dateType>
           </cit:CI_Date>
         </mdb:dateInfo>
       </xsl:if>
-
-
-      <!-- Preserve date order -->
-      <xsl:for-each select="mdb:dateInfo">
-        <xsl:variable name="currentDateType" select="*/cit:dateType/*/@codeListValue"/>
-
-        <!-- Update revision date-->
-        <xsl:choose>
-          <xsl:when test="$currentDateType = 'revision' and /root/env/changeDate">
-            <mdb:dateInfo>
-              <cit:CI_Date>
-                <cit:date>
-                  <gco:DateTime><xsl:value-of select="/root/env/changeDate"/></gco:DateTime>
-                </cit:date>
-                <cit:dateType>
-                  <cit:CI_DateTypeCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#CI_DateTypeCode" codeListValue="revision"/>
-                </cit:dateType>
-              </cit:CI_Date>
-            </mdb:dateInfo>
-          </xsl:when>
-          <xsl:otherwise>
-            <xsl:copy-of select="."/>
-          </xsl:otherwise>
-        </xsl:choose>
-      </xsl:for-each>
-
-
-
+      <xsl:apply-templates select="mdb:dateInfo"/>
+      
       <!-- Add metadataStandard if it doesn't exist -->
       <xsl:choose>
         <xsl:when test="not(mdb:metadataStandard)">
           <mdb:metadataStandard>
             <cit:CI_Citation>
               <cit:title>
-                <gco:CharacterString>ISO 19115-3</gco:CharacterString>
+                <gco:CharacterString>ISO19115-1:2014/ISO19115-3:2015</gco:CharacterString>
               </cit:title>
+              <cit:edition>
+                <gco:CharacterString>2015</gco:CharacterString>
+              </cit:edition>
             </cit:CI_Citation>
           </mdb:metadataStandard>
         </xsl:when>
@@ -143,8 +111,53 @@
         </xsl:otherwise>
       </xsl:choose>
       
-      <xsl:apply-templates select="mdb:metadataProfile"/>
-      <xsl:apply-templates select="mdb:alternativeMetadataReference"/>
+      <!-- Add metadataProfile if it doesn't exist -->
+      <xsl:choose>
+        <xsl:when test="not(mdb:metadataProfile)">
+          <mdb:metadataProfile>
+            <cit:CI_Citation>
+              <cit:title>
+                <gco:CharacterString>Geoscience Australia Community Metadata Profile of ISO 19115-1:2014</gco:CharacterString>
+              </cit:title>
+              <cit:edition>
+                <gco:CharacterString>Version 2.0, April 2015</gco:CharacterString>
+              </cit:edition>
+            </cit:CI_Citation>
+          </mdb:metadataProfile>
+        </xsl:when>
+        <xsl:otherwise>
+          <xsl:apply-templates select="mdb:metadataProfile"/>
+        </xsl:otherwise>
+      </xsl:choose>
+
+      <!-- Add gaid if specified as alternativeMetadataReference, otherwise copy existing reference to gaid -->
+			<xsl:choose>
+				<xsl:when test="/root/env/gaid">
+					<mdb:alternativeMetadataReference>
+						<cit:CI_Citation>
+							<cit:title>
+           			<gco:CharacterString>Geoscience Australia - short identifier for metadata record with uuid <xsl:value-of select="/root/env/uuid"/></gco:CharacterString>
+							</cit:title>
+      				<cit:identifier>
+       					<mcc:MD_Identifier>
+         					<mcc:code>
+           					<gco:CharacterString><xsl:value-of select="/root/env/gaid"/></gco:CharacterString>
+         					</mcc:code>
+         					<mcc:codeSpace>
+           					<gco:CharacterString>http://www.ga.gov.au</gco:CharacterString>
+         					</mcc:codeSpace>
+       					</mcc:MD_Identifier>
+      				</cit:identifier>
+						</cit:CI_Citation>
+					</mdb:alternativeMetadataReference>
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:copy-of select="mdb:alternativeMetadataReference[cit:CI_Citation/cit:identifier/mcc:MD_Identifier/mcc:codeSpace/gco:CharacterString='http://www.ga.gov.au']"/>
+				</xsl:otherwise>
+			</xsl:choose>
+     
+		 	<!-- Now process all other alternativeMetadataReference elements -->
+      <xsl:apply-templates select="mdb:alternativeMetadataReference[cit:CI_Citation/cit:identifier/mcc:MD_Identifier/mcc:codeSpace/gco:CharacterString!='http://www.ga.gov.au']"/>
       <xsl:apply-templates select="mdb:otherLocale"/>
       <xsl:apply-templates select="mdb:metadataLinkage"/>
 
@@ -163,7 +176,7 @@
             point of truth for the metadata linkage but this
             needs to be language dependant. -->
             <cit:function>
-              <cit:CI_OnLineFunctionCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#CI_OnLineFunctionCode"
+              <cit:CI_OnLineFunctionCode codeList="{concat($codeListLocation,'#CI_OnLineFunctionCode')}"
                                          codeListValue="completeMetadata"/>
             </cit:function>
           </cit:CI_OnlineResource>
@@ -182,13 +195,12 @@
       <xsl:apply-templates select="mdb:metadataConstraints"/>
       <xsl:apply-templates select="mdb:applicationSchemaInfo"/>
       <xsl:apply-templates select="mdb:metadataMaintenance"/>
-      <xsl:apply-templates select="mdb:acquisitionInformation"/>
     </xsl:copy>
   </xsl:template>
   
   
   <!-- Update revision date -->
-  <xsl:template match="mdb:dateInfo[cit:CI_Date/cit:dateType/cit:CI_DateTypeCode/@codeListValue='lastUpdate']">
+  <xsl:template match="mdb:dateInfo[cit:CI_Date/cit:dateType/cit:CI_DateTypeCode/@codeListValue='revision']">
     <xsl:copy>
       <xsl:choose>
         <xsl:when test="/root/env/changeDate">
@@ -197,7 +209,7 @@
               <gco:DateTime><xsl:value-of select="/root/env/changeDate"/></gco:DateTime>
             </cit:date>
             <cit:dateType>
-              <cit:CI_DateTypeCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#CI_DateTypeCode" codeListValue="lastUpdate"/>
+              <cit:CI_DateTypeCode codeList="{concat($codeListLocation,'#CI_DateTypeCode')}" codeListValue="revision"/>
             </cit:dateType>
           </cit:CI_Date>
         </xsl:when>
@@ -281,7 +293,7 @@
     </lan:LanguageCode>
   </xsl:template>
   
-  <xsl:template match="dqm:*[@codeListValue]" priority="10">
+  <xsl:template match="mdq:*[@codeListValue]" priority="10">
     <xsl:copy>
       <xsl:apply-templates select="@*"/>
       <xsl:attribute name="codeList">
@@ -294,17 +306,17 @@
     <xsl:copy>
       <xsl:apply-templates select="@*"/>
       <xsl:attribute name="codeList">
-        <xsl:value-of select="concat('http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#',local-name(.))"/>
+        <xsl:value-of select="concat($codeListLocation,'#',local-name(.))"/>
       </xsl:attribute>
     </xsl:copy>
   </xsl:template>
   
   
   <!-- online resources: download -->
-  <xsl:template match="cit:CI_OnlineResource[matches(cit:protocol/gco:CharacterString,'^WWW:DOWNLOAD.*') and cit:name]">
+  <xsl:template match="cit:CI_OnlineResource[matches(cit:protocol/gco:CharacterString,'^WWW:DOWNLOAD-.*-http--download.*') and cit:name]">
     <xsl:variable name="fname" select="cit:name/gco:CharacterString|cit:name/gcx:MimeFileType"/>
     <xsl:variable name="mimeType" select="mime:detectMimeTypeFile(/root/env/datadir, $fname)"/>
-
+    
     <xsl:copy>
       <xsl:copy-of select="@*"/>
       <cit:linkage>
@@ -337,8 +349,9 @@
   
   <!-- online resources: link-to-downloadable data etc -->
   <xsl:template match="cit:CI_OnlineResource[starts-with(cit:protocol/gco:CharacterString,'WWW:LINK-') and contains(cit:protocol/gco:CharacterString,'http--download')]">
-    <xsl:variable name="mimeType" select="mime:detectMimeTypeUrl(cit:linkage/gco:CharacterString)"/>
-
+		<xsl:variable name="fname" select="cit:name/gco:CharacterString|cit:name/gcx:MimeFileType"/>
+    <xsl:variable name="mimeType" select="mime:detectMimeTypeFile(/root/env/datadir, $fname)"/>
+    
     <xsl:copy>
       <xsl:copy-of select="@*"/>
       <xsl:copy-of select="cit:linkage"/>
@@ -375,15 +388,15 @@
   <!-- Do not allow to expand operatesOn sub-elements 
     and constrain users to use uuidref attribute to link
     service metadata to datasets. This will avoid to have
-    error on XSD validation.  |mrc:featureCatalogueCitation[@uuidref] -->
-  <xsl:template match="srv:operatesOn">
+    error on XSD validation. -->
+  <xsl:template match="srv:operatesOn|mrc:featureCatalogueCitation">
     <xsl:copy>
       <xsl:copy-of select="@uuidref"/>
       <xsl:if test="@uuidref">
         <xsl:choose>
           <xsl:when test="not(string(@xlink:href)) or starts-with(@xlink:href, /root/env/siteURL)">
             <xsl:attribute name="xlink:href">
-              <xsl:value-of select="concat(/root/env/siteURL,'csw?service=CSW&amp;request=GetRecordById&amp;version=2.0.2&amp;outputSchema=http://standards.iso.org/iso/19115/-3/gmd&amp;elementSetName=full&amp;id=',@uuidref)"/>
+              <xsl:value-of select="concat(/root/env/siteURL,'/csw?service=CSW&amp;request=GetRecordById&amp;version=2.0.2&amp;outputSchema=http://standards.iso.org/iso/19115/-3/mdb&amp;elementSetName=full&amp;id=',@uuidref)"/>
             </xsl:attribute>
           </xsl:when>
           <xsl:otherwise>
@@ -402,8 +415,7 @@
   -->
   <xsl:template match="lan:PT_Locale">
     <xsl:element name="lan:{local-name()}">
-      <xsl:variable name="id"
-                    select="upper-case(java:twoCharLangCode(lan:language/lan:LanguageCode/@codeListValue))"/>
+      <xsl:variable name="id" select="upper-case(java:twoCharLangCode(lan:language/lan:LanguageCode/@codeListValue))"/>
       
       <xsl:apply-templates select="@*"/>
       <xsl:if test="normalize-space(@id)='' or normalize-space(@id)!=$id">
@@ -416,7 +428,7 @@
   </xsl:template>
   
   <!-- Apply same changes as above to the lan:LocalisedCharacterString -->
-  <xsl:variable name="language" select="//(mdb:defaultLocale|mdb:otherLocale)/lan:PT_Locale" /> <!-- Need list of all locale -->
+  <xsl:variable name="language" select="//lan:PT_Locale" /> <!-- Need list of all locale -->
   
   <xsl:template match="lan:LocalisedCharacterString">
     <xsl:element name="lan:{local-name()}">
