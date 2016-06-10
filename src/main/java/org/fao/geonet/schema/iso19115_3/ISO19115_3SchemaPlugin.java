@@ -1,16 +1,8 @@
 package org.fao.geonet.schema.iso19115_3;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import org.fao.geonet.kernel.schema.AssociatedResource;
-import org.fao.geonet.kernel.schema.AssociatedResourcesSchemaPlugin;
-import org.fao.geonet.kernel.schema.ISOPlugin;
-import org.fao.geonet.kernel.schema.MultilingualSchemaPlugin;
+import org.fao.geonet.kernel.schema.*;
 import org.fao.geonet.utils.Log;
 import org.fao.geonet.utils.Xml;
 import org.jdom.Element;
@@ -19,19 +11,26 @@ import org.jdom.Namespace;
 import org.jdom.filter.ElementFilter;
 import org.jdom.xpath.XPath;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 /**
- * Created by francois on 6/15/14.
+ * Created by francois on 6/15/14. Modified by sppigot.
  */
 public class ISO19115_3SchemaPlugin
         extends org.fao.geonet.kernel.schema.SchemaPlugin
         implements
                 AssociatedResourcesSchemaPlugin,
                 MultilingualSchemaPlugin,
+                ExportablePlugin,
                 ISOPlugin {
     public static final String IDENTIFIER = "iso19115-3";
 
     private static ImmutableSet<Namespace> allNamespaces;
     private static Map<String, Namespace> allTypenames;
+    private static Map<String, String> allExportFormats;
 
     static {
         allNamespaces = ImmutableSet.<Namespace>builder()
@@ -45,13 +44,16 @@ public class ISO19115_3SchemaPlugin
 
         allTypenames = ImmutableMap.<String, Namespace>builder()
                 .put("csw:Record", Namespace.getNamespace("csw", "http://www.opengis.net/cat/csw/2.0.2"))
-                .put("mdb:MD_Metadata", Namespace.getNamespace("mdb", "http://standards.iso.org/iso/19115/-3/mdb/1.0"))
-                .put("gmd:MD_Metadata", Namespace.getNamespace("gmd", "http://www.isotc211.org/2005/gmd"))
+                .put("mdb:MD_Metadata", ISO19115_3Namespaces.MDB)
                 .build();
+ 
+        allExportFormats = ImmutableMap.<String, String>builder()
+            .put("convert/to19115-3.xsl", "metadata-iso19115-3.xml")
+            .build();
     }
 
     public ISO19115_3SchemaPlugin() {
-        super(IDENTIFIER);
+        super(IDENTIFIER, allNamespaces);
     }
 
     public Set<AssociatedResource> getAssociatedResourcesUUIDs(Element metadata) {
@@ -189,5 +191,10 @@ public class ISO19115_3SchemaPlugin
     @Override
     public Map<String, Namespace> getCswTypeNames() {
         return allTypenames;
+    }
+
+    @Override
+    public Map<String, String> getExportFormats() {
+        return allExportFormats;
     }
 }
